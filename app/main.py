@@ -64,6 +64,12 @@ def health():
         "env": "production" if os.getenv("RENDER") else "local"
     }
 
+@app.get("/data_exist")
+def health():
+    return {
+        "data": "exist!!!"
+    }
+
 
 # === ЭНДПОИНТ: РЕГИСТРАЦИЯ ПОЛЬЗОВАТЕЛЯ ===
 @app.post("/register", response_model=UserResponse)
