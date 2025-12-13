@@ -82,7 +82,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     4. Возвращаем UserResponse (без пароля!)
     """
     # Проверка уникальности логина
-    existing = db.query(models.User).filter(models.User.username == user.username).first()
+    existing = db.query(models.User).filter(models.User.user_login == user.user_login).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username already taken")
 
