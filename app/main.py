@@ -27,8 +27,8 @@ class UserCreate(BaseModel):
     - проверяет, что есть username и password (и они строки)
     - отдаёт ошибку 422, если данные некорректны
     """
-    username: str
-    password: str
+    user_login: str
+    user_password: str
 
 
 class UserResponse(BaseModel):
@@ -37,8 +37,8 @@ class UserResponse(BaseModel):
     Определяет, какие поля будут возвращены клиенту.
     Скрывает пароль, возвращает только id и username.
     """
-    id: int
-    username: str
+    user_id: int
+    user_login: str
 
     class Config:
         # Разрешает Pydantic работать с объектами SQLAlchemy (ORM-моделями)
@@ -74,36 +74,23 @@ def health():
 # === ЭНДПОИНТ: РЕГИСТРАЦИЯ ПОЛЬЗОВАТЕЛЯ ===
 @app.post("/register", response_model=UserResponse)
 def register(user: UserCreate, db: Session = Depends(get_db)):
-    """
-    Регистрирует нового пользователя.
-
-    Параметры:
-    - user: автоматически валидируется как UserCreate
-    - db: сессия БД, полученная через Depends(get_db)
-
-    Логика:
-    1. Проверяем, не занят ли username
-    2. Хэшируем пароль
-    3. Сохраняем в БД
-    4. Возвращаем UserResponse (без пароля!)
-    """
-    # Проверка уникальности логина
+    # Проверка уникальности
     existing = db.query(models.User).filter(models.User.user_login == user.user_login).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Username already taken")
+        raise HTTPException(status_code=400, detail="Login already taken")
 
-    # Хэшируем пароль (никогда не сохраняем оригинал!)
-    hashed = hash_password(user.password)
+    # Хэшируем пароль
+    hashed = hash_password(user.user_password)  # ← было user.password
 
-    # Создаём ORM-объект
-    db_user = models.User(username=user.username, hashed_password=hashed)
+    # Создаём ORM-объект с правильными полями
+    db_user = models.User(
+        user_login=user.user_login,         # ← было username
+        user_password=hashed                # ← было hashed_password
+    )
 
-    # Сохраняем в БД
     db.add(db_user)
-    db.commit()  # фиксируем транзакцию
-    db.refresh(db_user)  # получаем user_id после INSERT
-
-    # Возвращаем только то, что разрешено схемой UserResponse
+    db.commit()
+    db.refresh(db_user)
     return db_user
 
 # === ЭНДПОИНТ: ПОЛУЧЕНИЕ СПИСКА ПОЛЬЗОВАТЕЛЕЙ ===
