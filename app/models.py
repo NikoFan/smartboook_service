@@ -8,6 +8,8 @@ class User(Base):
     user_id = Column(Integer, autoincrement=True, primary_key=True, index=True)
     user_login = Column(String, nullable=False)
     user_password = Column(String, nullable=False)
+    # Обратная связь: пользователь может иметь множество записей
+    records = relationship("Records", back_populates="owner")
 
 
 class Records(Base):
