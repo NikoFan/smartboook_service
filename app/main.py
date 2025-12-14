@@ -10,6 +10,9 @@ from . import models, database
 models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI()
+@app.on_event("startup")
+def on_startup():
+    models.Base.metadata.create_all(bind=database.engine)
 
 # Зависимость для получения сессии БД
 def get_db():
@@ -121,6 +124,7 @@ def get_users(db: Session = Depends(get_db)):
     Полезно для отладки или админки.
     """
     return db.query(models.User).all()
+
 @app.get("/health")
 def health():
     """
@@ -148,3 +152,18 @@ def clear_users(db: Session = Depends(get_db)):
     db.query(models.User).delete()
     db.commit() # Сохранение изменений
     return {"message": "All users and records deleted"}
+
+
+@app.post("/dev/drop-tables", include_in_schema=False)
+def drop_all_tables(db: Session = Depends(get_db)):
+    """
+    Удаляет ВСЕ таблицы, определённые в ваших моделях SQLAlchemy.
+    Используйте ТОЛЬКО в разработке!
+    """
+    # Вариант 1: через metadata (рекомендуется)
+    models.Base.metadata.drop_all(bind=db.get_bind())
+
+    # Альтернатива: если связи мешают — дропаем вручную в правильном порядке
+    # db.execute(text("DROP TABLE IF EXISTS records, users CASCADE;"))
+
+    return {"status": "success", "message": "All tables dropped."}
