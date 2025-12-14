@@ -3,6 +3,7 @@ import bcrypt
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from database import engine
 
 from . import models, database
 
@@ -10,6 +11,10 @@ from . import models, database
 models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI()
+# Создаём таблицы при запуске
+@app.on_event("startup")
+def on_startup():
+    models.Base.metadata.create_all(bind=engine)
 
 # Зависимость для получения сессии БД
 def get_db():
@@ -74,6 +79,9 @@ def health():
 # === ЭНДПОИНТ: РЕГИСТРАЦИЯ ПОЛЬЗОВАТЕЛЯ ===
 @app.post("/register", response_model=UserResponse)
 def register(user: UserCreate, db: Session = Depends(get_db)):
+    print(user.user_login)
+    print(user.user_password)
+    print(user.user_id)
     # Проверка уникальности
     existing = db.query(models.User).filter(models.User.user_login == user.user_login).first()
     if existing:
