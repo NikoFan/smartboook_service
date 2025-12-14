@@ -3,7 +3,6 @@ import bcrypt
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from database import engine
 
 from . import models, database
 
@@ -14,7 +13,7 @@ app = FastAPI()
 # Создаём таблицы при запуске
 @app.on_event("startup")
 def on_startup():
-    models.Base.metadata.create_all(bind=engine)
+    models.Base.metadata.create_all(bind=database.engine)
 
 # Зависимость для получения сессии БД
 def get_db():
