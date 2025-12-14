@@ -69,11 +69,13 @@ def hash_password(password: str) -> str:
 @app.post("/login")
 def login(request: LoginRequest, db: Session = Depends(get_db)):
     """ Авторизация пользователя """
-    user = db.query(models.User).filter(models.User.user_login == request.user_login)
+    user = db.query(models.User).filter(models.User.user_login == request.user_login).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid login or password")
     if not user or not bcrypt.checkpw(
         request.user_password.encode(), user.user_password.encode()
     ):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=401, detail="Invalid password")
     return {"user_id": user.user_id, "username": user.user_login, "mail": user.user_mail}
 
 
