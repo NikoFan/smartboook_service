@@ -76,7 +76,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
         request.user_password.encode(), user.user_password.encode()
     ):
         raise HTTPException(status_code=401, detail="Invalid password")
-    return {"user_id": user.user_id, "username": user.user_login, "mail": user.user_mail}
+    return {"user_id": user.user_id, "user_login": user.user_login, "user_mail": user.user_mail}
 
 
 # === ЭНДПОИНТ: РЕГИСТРАЦИЯ ПОЛЬЗОВАТЕЛЯ ===
@@ -114,7 +114,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    return db_user
+    return {"user_id": user.user_id, "user_login": user.user_login, "user_mail": user.user_mail}
 
 
 
