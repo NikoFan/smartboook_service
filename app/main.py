@@ -80,7 +80,6 @@ def health():
 def register(user: UserCreate, db: Session = Depends(get_db)):
     print(user.user_login)
     print(user.user_password)
-    print(user.user_id)
     # Проверка уникальности
     existing = db.query(models.User).filter(models.User.user_login == user.user_login).first()
     if existing:
