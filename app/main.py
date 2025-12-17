@@ -3,6 +3,8 @@ import bcrypt
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from datetime import *
+import random
 
 from . import models, database
 
@@ -10,9 +12,12 @@ from . import models, database
 models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI()
+
+
 @app.on_event("startup")
 def on_startup():
     models.Base.metadata.create_all(bind=database.engine)
+
 
 # Зависимость для получения сессии БД
 def get_db():
@@ -22,7 +27,8 @@ def get_db():
     finally:
         db.close()
 
-class UserCreate(BaseModel):
+
+class RegisterRequest(BaseModel):
     """
     Схема для ВХОДЯЩИХ данных при регистрации.
     FastAPI автоматически:
@@ -49,6 +55,7 @@ class UserResponse(BaseModel):
         # Разрешает Pydantic работать с объектами SQLAlchemy (ORM-моделями)
         from_attributes = True  # для SQLAlchemy 2.0+
 
+
 class LoginRequest(BaseModel):
     """
     Схема для авторизации пользователя
@@ -57,6 +64,7 @@ class LoginRequest(BaseModel):
     user_password: str
 
 
+# === ФУНКЦИИ ===
 def hash_password(password: str) -> str:
     """
     Хеширование пароля
@@ -66,6 +74,40 @@ def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
+def generate_verification_code() -> int:
+    """
+    Метод генерации случайного кода для верификации пользователя
+    :return: int()
+    """
+    return random.randint(100000, 999999)
+
+
+def send_verification_mail(code: int, goal_user: str) -> None:
+    """
+    Метод отправки кода на почту пользователя
+    :param code: отправляемый код
+    :return: none
+    """
+    smtp_user = os.getenv("SMTP_NAME")
+    smtp_password = os.getenv("SMTP_PASS")
+
+    # Пример с отправкой через smtplib
+    import smtplib
+    from email.mime.text import MIMEText
+
+    msg = MIMEText(f"Ваш код: {code}")
+    msg["Subject"] = "Подтверждение регистрации"
+    msg["From"] = smtp_user
+    msg["To"] = goal_user
+
+    with smtplib.SMTP("smtp.gmail.com", 587) as server:
+        server.starttls()
+        server.login(smtp_user, smtp_password)
+        server.send_message(msg)
+
+
+
+# === POST ===
 @app.post("/login")
 def login(request: LoginRequest, db: Session = Depends(get_db)):
     """ Авторизация пользователя """
@@ -73,15 +115,55 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=400, detail="Invalid login or password")
     if not user or not bcrypt.checkpw(
-        request.user_password.encode(), user.user_password.encode()
+            request.user_password.encode(), user.user_password.encode()
     ):
         raise HTTPException(status_code=401, detail="Invalid password")
     return {"user_id": user.user_id, "user_login": user.user_login, "user_mail": user.user_mail}
 
 
+@app.post("/register/init")
+def init_registration(data: RegisterRequest, db: Session = Depends(get_db)):
+    # проверка уникальности...
+    hashed = hash_password(data.user_password)
+    code = generate_verification_code()
+    pending = models.PendingUser(
+        user_login=data.user_login,
+        user_password=hashed,
+        user_mail=data.user_mail,
+        confirmation_code=code,
+        expires_at=datetime.utcnow() + timedelta(minutes=10)
+    )
+    db.add(pending)
+    db.commit()
+    send_verification_mail(code=code, goal_user=data.user_mail)  # ← на сервере!
+    return {"message": "Code sent to email"}
+
+
+# @app.post("/register/confirm")
+# def confirm_registration(confirm: ConfirmRequest, db: Session = Depends(get_db)):
+#     pending = db.query(PendingUser).filter(
+#         PendingUser.user_mail == confirm.email,
+#         PendingUser.confirmation_code == confirm.code
+#     ).first()
+#
+#     if not pending or pending.expires_at < datetime.utcnow():
+#         raise HTTPException(400, "Invalid or expired code")
+#
+#     # Переносим в основную таблицу
+#     user = User(
+#         user_login=pending.user_login,
+#         user_password=pending.user_password,
+#         user_mail=pending.user_mail
+#     )
+#     db.add(user)
+#     db.delete(pending)
+#     db.commit()
+#     return UserResponse(...)  # или JWT
+
+
 # === ЭНДПОИНТ: РЕГИСТРАЦИЯ ПОЛЬЗОВАТЕЛЯ ===
 @app.post("/register", response_model=UserResponse)
-def register(user: UserCreate, db: Session = Depends(get_db)):
+def register(user: RegisterRequest, db: Session = Depends(get_db)):
     """
     Регистрация пользователя
     Проверка дублирования логина or почты
@@ -106,8 +188,8 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
     # Создаём ORM-объект с правильными полями
     db_user = models.User(
-        user_login=user.user_login,         # ← было username
-        user_password=hashed,               # ← было hashed_password
+        user_login=user.user_login,  # ← было username
+        user_password=hashed,  # ← было hashed_password
         user_mail=user.user_mail
     )
 
@@ -115,7 +197,6 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_user)
     return {"user_id": user.user_id, "user_login": user.user_login, "user_mail": user.user_mail}
-
 
 
 # === GET ===
@@ -126,6 +207,7 @@ def get_users(db: Session = Depends(get_db)):
     Полезно для отладки или админки.
     """
     return db.query(models.User).all()
+
 
 @app.get("/health")
 def health():
@@ -152,7 +234,7 @@ def clear_users(db: Session = Depends(get_db)):
     db.query(models.Records).delete()
     # Потом — пользователей
     db.query(models.User).delete()
-    db.commit() # Сохранение изменений
+    db.commit()  # Сохранение изменений
     return {"message": "All users and records deleted"}
 
 
