@@ -63,6 +63,13 @@ class LoginRequest(BaseModel):
     user_login: str
     user_password: str
 
+class ConfirmRequest(BaseModel):
+    """
+    Схема для запроса на подтверждение
+    """
+    email: str
+    code: str
+
 
 # === ФУНКЦИИ ===
 def hash_password(password: str) -> str:
@@ -135,30 +142,30 @@ def init_registration(data: RegisterRequest, db: Session = Depends(get_db)):
     )
     db.add(pending)
     db.commit()
-    send_verification_mail(code=code, goal_user=data.user_mail)  # ← на сервере!
+    send_verification_mail(code=code, goal_user=data.user_mail) # Отправка кода
     return {"message": "Code sent to email"}
 
 
-# @app.post("/register/confirm")
-# def confirm_registration(confirm: ConfirmRequest, db: Session = Depends(get_db)):
-#     pending = db.query(PendingUser).filter(
-#         PendingUser.user_mail == confirm.email,
-#         PendingUser.confirmation_code == confirm.code
-#     ).first()
-#
-#     if not pending or pending.expires_at < datetime.utcnow():
-#         raise HTTPException(400, "Invalid or expired code")
-#
-#     # Переносим в основную таблицу
-#     user = User(
-#         user_login=pending.user_login,
-#         user_password=pending.user_password,
-#         user_mail=pending.user_mail
-#     )
-#     db.add(user)
-#     db.delete(pending)
-#     db.commit()
-#     return UserResponse(...)  # или JWT
+@app.post("/register/confirm")
+def confirm_registration(confirm: ConfirmRequest, db: Session = Depends(get_db)):
+    pending = db.query(models.PendingUser).filter(
+        models.PendingUser.user_mail == confirm.email,
+        models.PendingUser.confirmation_code == confirm.code
+    ).first()
+
+    if not pending or pending.expires_at < datetime.utcnow():
+        raise HTTPException(400, "Invalid or expired code")
+
+    # Переносим в основную таблицу
+    user = models.User(
+        user_login=pending.user_login,
+        user_password=pending.user_password,
+        user_mail=pending.user_mail
+    )
+    db.add(user)
+    db.delete(pending)
+    db.commit()
+    return {"result": "success"}
 
 
 # === ЭНДПОИНТ: РЕГИСТРАЦИЯ ПОЛЬЗОВАТЕЛЯ ===
