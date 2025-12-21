@@ -130,20 +130,25 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 
 @app.post("/register/init")
 def init_registration(data: RegisterRequest, db: Session = Depends(get_db)):
+    """ Инициализация процесса регистрации """
     # проверка уникальности...
-    hashed = hash_password(data.user_password)
-    code = generate_verification_code()
-    pending = models.PendingUser(
-        user_login=data.user_login,
-        user_password=hashed,
-        user_mail=data.user_mail,
-        confirmation_code=code,
-        expires_at=datetime.utcnow() + timedelta(minutes=10)
-    )
-    db.add(pending)
-    db.commit()
-    send_verification_mail(code=code, goal_user=data.user_mail) # Отправка кода
-    return {"message": "Code sent to email"}
+    try:
+
+        hashed = hash_password(data.user_password)
+        code = generate_verification_code()
+        pending = models.PendingUser(
+            user_login=data.user_login,
+            user_password=hashed,
+            user_mail=data.user_mail,
+            confirmation_code=code,
+            expires_at=datetime.utcnow() + timedelta(minutes=10)
+        )
+        db.add(pending)
+        db.commit()
+        send_verification_mail(code=code, goal_user=data.user_mail) # Отправка кода на почту
+        return {"message": "Code sent to email"}
+    except Exception as e:
+        HTTPException(status_code=401, detail=e)
 
 
 @app.post("/register/confirm")
