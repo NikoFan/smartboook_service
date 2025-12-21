@@ -1,7 +1,8 @@
 import os
 import bcrypt
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
 from datetime import *
 import random
@@ -131,24 +132,35 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 @app.post("/register/init")
 def init_registration(data: RegisterRequest, db: Session = Depends(get_db)):
     """ Инициализация процесса регистрации """
-    # проверка уникальности...
     try:
-
         hashed = hash_password(data.user_password)
-        code = generate_verification_code()
+        code = str(random.randint(100000, 999999))
         pending = models.PendingUser(
             user_login=data.user_login,
             user_password=hashed,
             user_mail=data.user_mail,
-            confirmation_code=str(code),
+            confirmation_code=code,
             expires_at=datetime.utcnow() + timedelta(minutes=10)
         )
         db.add(pending)
         db.commit()
-        send_verification_mail(code=code, goal_user=data.user_mail) # Отправка кода на почту
+        db.refresh(pending)
+        send_verification_mail(code=code, goal_user=data.user_mail)
         return {"message": "Code sent to email"}
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Login or email already in use"
+        )
     except Exception as e:
-        return HTTPException(status_code=400, detail=e)
+        db.rollback()
+        # Логируем в продакшене, но не возвращаем клиенту
+        print(f"Unexpected error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Registration temporarily unavailable"
+        )
 
 
 @app.post("/register/confirm")
