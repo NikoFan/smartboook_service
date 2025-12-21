@@ -148,7 +148,7 @@ def init_registration(data: RegisterRequest, db: Session = Depends(get_db)):
         send_verification_mail(code=code, goal_user=data.user_mail) # Отправка кода на почту
         return {"message": "Code sent to email"}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=e)
+        return HTTPException(status_code=400, detail=e)
 
 
 @app.post("/register/confirm")
