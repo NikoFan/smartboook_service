@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, BigInteger
 from sqlalchemy.orm import relationship
 from .database import Base
 from datetime import datetime
@@ -31,6 +31,6 @@ class PendingUser(Base):
     user_login = Column(String, unique=True)
     user_password = Column(String)  # уже хэшированный!
     user_mail = Column(String, unique=True)
-    confirmation_code = Column(String)  # например, "123456"
+    confirmation_code = Column(BigInteger)  # например, "123456"
     expires_at = Column(DateTime)       # через 10 минут удалить
     created_at = Column(DateTime, default=datetime.utcnow)
