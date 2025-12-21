@@ -2,6 +2,7 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import QueuePool
 
 DATABASE_URL = os.getenv('DATABASE_URL')
 
@@ -14,9 +15,11 @@ if DATABASE_URL.startswith("postgres://"):
 
 engine = create_engine(
     DATABASE_URL,
-    pool_size=1,
-    max_overflow=0,
-    pool_pre_ping=True  # переподключается, если соединение "мертво"
+    poolclass=QueuePool,
+    pool_size=1,          # только 1 активное подключение
+    max_overflow=0,       # не пытаться создавать дополнительные
+    pool_pre_ping=True,   # проверяет подключение перед использованием (полезно при таймаутах)
+    pool_recycle=300      # пересоздаёт подключение каждые 5 минут (на случай таймаута idle)
 )
 
 
