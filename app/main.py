@@ -96,8 +96,8 @@ def send_verification_mail(code: str, goal_user: str) -> None:
     """
     Отправка кода подтверждения на почту через mail.ru
     """
-    smtp_user = os.getenv("SMTP_USER")  # Например: neoleg2005@mail.ru
-    smtp_password = os.getenv("SMTP_PASSWORD")  # Пароль для внешних приложений
+    smtp_user = os.getenv("SMTP_NAME")  # Например: neoleg2005@mail.ru
+    smtp_password = os.getenv("SMTP_PASS")  # Пароль для внешних приложений
 
     if not smtp_user or not smtp_password:
         print("SMTP_USER or SMTP_PASSWORD not set!")
