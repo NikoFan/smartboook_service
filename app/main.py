@@ -6,6 +6,8 @@ from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
 from datetime import *
 import random
+import smtplib
+from email.mime.text import MIMEText
 
 from . import models, database
 
@@ -90,28 +92,34 @@ def generate_verification_code() -> int:
     return random.randint(100000, 999999)
 
 
-def send_verification_mail(code: int, goal_user: str) -> None:
+def send_verification_mail(code: str, goal_user: str) -> None:
     """
-    Метод отправки кода на почту пользователя
-    :param code: отправляемый код
-    :return: none
+    Отправка кода подтверждения на почту через mail.ru
     """
-    smtp_user = os.getenv("SMTP_NAME")
-    smtp_password = os.getenv("SMTP_PASS")
+    smtp_user = os.getenv("SMTP_USER")  # Например: neoleg2005@mail.ru
+    smtp_password = os.getenv("SMTP_PASSWORD")  # Пароль для внешних приложений
 
-    # Пример с отправкой через smtplib
-    import smtplib
-    from email.mime.text import MIMEText
+    if not smtp_user or not smtp_password:
+        print("SMTP_USER or SMTP_PASSWORD not set!")
+        return  # Не падаем, если переменные не заданы
 
-    msg = MIMEText(f"Ваш код: {code}")
-    msg["Subject"] = "Подтверждение регистрации"
-    msg["From"] = smtp_user
-    msg["To"] = goal_user
+    try:
+        # Используем SMTP mail.ru с портом 587 и STARTTLS
+        with smtplib.SMTP("smtp.mail.ru", 587) as server:
+            server.starttls()  # Включаем шифрование
+            server.login(smtp_user, smtp_password)
 
-    with smtplib.SMTP("smtp.gmail.com", 587) as server:
-        server.starttls()
-        server.login(smtp_user, smtp_password)
-        server.send_message(msg)
+            msg = MIMEText(f"Ваш код подтверждения: {code}")
+            msg["Subject"] = "Подтверждение регистрации"
+            msg["From"] = smtp_user
+            msg["To"] = goal_user
+
+            server.send_message(msg)
+            print(f"Code {code} sent to {goal_user}")
+
+    except Exception as e:
+        print(f"Failed to send email to {goal_user}: {e}")
+        # НЕ вызываем исключение — пусть регистрация завершится даже при ошибке отправки
 
 
 
