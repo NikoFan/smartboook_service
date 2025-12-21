@@ -211,6 +211,27 @@ def register(user: RegisterRequest, db: Session = Depends(get_db)):
     return {"user_id": user.user_id, "user_login": user.user_login, "user_mail": user.user_mail}
 
 
+@app.post("/dev/reset-db", include_in_schema=False)
+def reset_db():
+    models.Base.metadata.drop_all(bind=database.engine)
+    models.Base.metadata.create_all(bind=database.engine)
+    return {"status": "DB reset"}
+
+@app.post("/dev/drop-tables", include_in_schema=False)
+def drop_all_tables(db: Session = Depends(get_db)):
+    """
+    Удаляет ВСЕ таблицы, определённые в ваших моделях SQLAlchemy.
+    Используйте ТОЛЬКО в разработке!
+    """
+    # Вариант 1: через metadata (рекомендуется)
+    models.Base.metadata.drop_all(bind=db.get_bind())
+
+    # Альтернатива: если связи мешают — дропаем вручную в правильном порядке
+    # db.execute(text("DROP TABLE IF EXISTS records, users CASCADE;"))
+
+    return {"status": "success", "message": "All tables dropped."}
+
+
 # === GET ===
 @app.get("/users", response_model=list[UserResponse])
 def get_users(db: Session = Depends(get_db)):
@@ -250,16 +271,4 @@ def clear_users(db: Session = Depends(get_db)):
     return {"message": "All users and records deleted"}
 
 
-@app.post("/dev/drop-tables", include_in_schema=False)
-def drop_all_tables(db: Session = Depends(get_db)):
-    """
-    Удаляет ВСЕ таблицы, определённые в ваших моделях SQLAlchemy.
-    Используйте ТОЛЬКО в разработке!
-    """
-    # Вариант 1: через metadata (рекомендуется)
-    models.Base.metadata.drop_all(bind=db.get_bind())
 
-    # Альтернатива: если связи мешают — дропаем вручную в правильном порядке
-    # db.execute(text("DROP TABLE IF EXISTS records, users CASCADE;"))
-
-    return {"status": "success", "message": "All tables dropped."}
