@@ -140,7 +140,7 @@ def init_registration(data: RegisterRequest, db: Session = Depends(get_db)):
             user_login=data.user_login,
             user_password=hashed,
             user_mail=data.user_mail,
-            confirmation_code=code,
+            confirmation_code=str(code),
             expires_at=datetime.utcnow() + timedelta(minutes=10)
         )
         db.add(pending)
@@ -148,7 +148,7 @@ def init_registration(data: RegisterRequest, db: Session = Depends(get_db)):
         send_verification_mail(code=code, goal_user=data.user_mail) # Отправка кода на почту
         return {"message": "Code sent to email"}
     except Exception as e:
-        return HTTPException(status_code=401, detail=e)
+        raise HTTPException(status_code=400, detail=e)
 
 
 @app.post("/register/confirm")
