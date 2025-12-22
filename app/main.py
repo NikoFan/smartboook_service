@@ -8,6 +8,7 @@ from datetime import *
 import random
 import smtplib
 from email.mime.text import MIMEText
+import threading
 
 from . import models, database
 
@@ -152,9 +153,20 @@ def init_registration(data: RegisterRequest, db: Session = Depends(get_db)):
         )
         db.add(pending)
         db.commit()
-        db.refresh(pending)
-        send_verification_mail(code=code, goal_user=data.user_mail)
-        return {"message": "Code sent to email"}
+
+        # Отвечаем СРАЗУ
+        response = {"message": "Code sent to email"}
+
+        # Отправляем email в фоне
+        def send_in_background():
+            try:
+                send_verification_mail(code, data.user_mail)
+            except Exception as e:
+                print(f"Background email failed: {e}")
+
+        threading.Thread(target=send_in_background, daemon=True).start()
+
+        return response
     except IntegrityError:
         db.rollback()
         raise HTTPException(
