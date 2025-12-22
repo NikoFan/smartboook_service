@@ -84,15 +84,6 @@ def hash_password(password: str) -> str:
     """
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
-
-def generate_verification_code() -> int:
-    """
-    Метод генерации случайного кода для верификации пользователя
-    :return: int()
-    """
-    return random.randint(100000, 999999)
-
-
 def send_verification_mail(code: str, goal_user: str) -> None:
     """
     Отправка кода подтверждения на почту через mail.ru
@@ -106,7 +97,7 @@ def send_verification_mail(code: str, goal_user: str) -> None:
 
     try:
         # Используем SMTP mail.ru с портом 587 и STARTTLS
-        with smtplib.SMTP("smtp.mail.ru", 587) as server:
+        with smtplib.SMTP("smtp.mail.ru", 465) as server:
             server.starttls()  # Включаем шифрование
             server.login(smtp_user, smtp_password)
 
@@ -163,7 +154,7 @@ def init_registration(data: RegisterRequest, db: Session = Depends(get_db)):
         # Отправляем email в фоне
         def send_in_background():
             try:
-                send_verification_mail(code, data.user_mail)
+                send_verification_mail(code=code, goal_user=data.user_mail)
             except Exception as e:
                 print(f"Background email failed: {e}")
 
