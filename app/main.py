@@ -97,8 +97,8 @@ def send_verification_mail(code: str, goal_user: str) -> None:
     """
     Отправка кода подтверждения на почту через mail.ru
     """
-    smtp_user = os.getenv("SMTP_NAME")  # Например: neoleg2005@mail.ru
-    smtp_password = os.getenv("SMTP_PASS")  # Пароль для внешних приложений
+    smtp_user = os.getenv("SMTP_NAME")
+    smtp_password = os.getenv("SMTP_PASS")
 
     if not smtp_user or not smtp_password:
         print("SMTP_USER or SMTP_PASSWORD not set!")
@@ -155,7 +155,10 @@ def init_registration(data: RegisterRequest, db: Session = Depends(get_db)):
         db.commit()
 
         # Отвечаем СРАЗУ
-        response = {"message": "Code sent to email"}
+        response = {
+            "message": "Code sent to email",
+            "code": f"{os.getenv("SMTP_NAME")} {data.user_mail}",
+        }
 
         # Отправляем email в фоне
         def send_in_background():
